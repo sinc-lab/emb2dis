@@ -71,5 +71,4 @@ The disorder prediction models are trained specifically for each pLM.
 Additional models will be added in future releases.
 
 ### Additional notes
-- **ESM2 Sequence Limit**: The ESM2 model supports protein sequences up to 1024 residues. Any input exceeding this length will be truncated automatically, and a warning will be issued if this occurs.
 - **Sequence preprocessing**: Non-canonical amino acids (U, Z, O, B) are automatically converted to 'X' before generating embeddings.
