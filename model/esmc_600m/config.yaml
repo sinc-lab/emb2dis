@@ -1,0 +1,22 @@
+batch_size: 16
+categories:
+- structured
+- disordered
+debug: false
+emb_size:
+  ESM2: 1280
+  ProstT5: 1024
+  ProtT5: 1024
+  esmc_300m: 960
+  esmc_600m: 1152
+filters: 400
+kernel_size: 9
+lr: 2.1940046439065697e-06
+n_resnet: 1
+nepoch: 500
+pLM: esmc_600m
+p_dropout: 0.30000000000000004
+patience: 10
+soft_max: true
+threshold: 0.42899999022483826
+win_len: 35

@@ -1,0 +1,1 @@
+trial221_filt400_ker11_resnet2_win30_lr1e-04_drop0.20_05-03-2026_21-13-10
