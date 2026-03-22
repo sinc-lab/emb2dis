@@ -208,7 +208,7 @@ def generate_embeddings_from_fasta(
         
         # Truncate length > 4000
         if len(seq) > 4000:
-            print(f"Warning: Sequence {r.id} is too long ({len(seq)} residues) for ProtT5/ProstT5. "
+            print(f"Warning: Sequence {r.id} is too long ({len(seq)} residues). "
                   f"Truncating to 4000 residues.")
             seq = seq[:4000]
         sequences.append(seq)

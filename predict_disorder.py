@@ -67,7 +67,7 @@ def main():
         print(f"Using device: {device} ({device_name})")
 
     # Set up model path, config and weights ------------------------------------
-    model_dir = Path(f"model/{args.model}/model0/")
+    model_dir = Path(f"model/{args.model}/")
     if not model_dir.exists():
         raise FileNotFoundError(f"Model directory not found: {model_dir}")
     
@@ -96,7 +96,7 @@ def main():
         len(categories),
         lr=config['lr'],
         device=device,
-        emb_size=get_embedding_size(config.get('plm', 'ProtT5')),
+        emb_size=get_embedding_size(config.get('pLM', 'ProtT5')),
         filters=config['filters'],
         kernel_size=config['kernel_size'],
         num_layers=config['n_resnet']
@@ -159,7 +159,7 @@ def main():
         # Save predictions to CSV
         output_csv = output_dir / f"{protein_id}_{args.model}_predictions.csv"
         df = pd.DataFrame({
-            'position': centers,
+            'position': centers+1,
             'disordered_score': predictions[:, 1].numpy(),
             'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
         })
