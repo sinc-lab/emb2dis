@@ -204,7 +204,7 @@ def generate_embeddings_from_fasta(
     for r in records:
         seq = str(r.seq)
         # Clean sequence (replace unusual amino acids with X)
-        seq = re.sub(r"[UZOB]", "X", seq.upper())
+        seq = re.sub(r"[UZOBJ]", "X", seq.upper())
         
         # Truncate length > 4000
         if len(seq) > 4000:
