@@ -21,5 +21,8 @@ ENTRYPOINT ["python", "/app/predict_disorder.py", \
             "--model", "ProtT5", \
             "--device", "cpu", \
             "--caid", \
+            "--fasta", "/data/input.fasta", \
+            "--embeddings-dir", "/data/embeddings", \
+            "--output-dir", "/data/output", \
             "--threads", "4"]
-CMD ["--help"]
+CMD []
