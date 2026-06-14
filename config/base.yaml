@@ -1,0 +1,21 @@
+categories: ['structured', 'disordered']
+filters: 200
+kernel_size: 7
+n_resnet: 1
+lr: 1.0e-5
+batch_size: 16
+nepoch: 500
+patience: 15
+win_len: 19
+soft_max: true
+p_dropout: 0.4
+
+pLM: 'ProtT5'
+emb_size:
+  ESM2: 1280
+  ProtT5: 1024
+  ProstT5: 1024
+  esmc_300m: 960
+  esmc_600m: 1152
+
+debug: false # if true, only a subset of the data (100) is used to train
