@@ -26,7 +26,7 @@ def parser():
     parser.add_argument(
         '--model', '-m',
         type=str,
-        default='ProtT5',
+        default='ESM2',
         choices=['ESM2', 'ProtT5'], # Later will add ['ProstT5', 'esmc_300m', 'esmc_600m'],
         help='Protein Language Model (pLM) used for generating embeddings. '
              'The disorder prediction model was trained using embeddings from this pLM'
