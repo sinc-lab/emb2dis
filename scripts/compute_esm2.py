@@ -1,5 +1,5 @@
 """
-Read a FASTA, generate ProtT5 embeddings on CPU (full precision), and save one {protein_id}.npy per record to an output dir. This script uses the full dev environment (requirements.txt). 
+Read a FASTA, generate ESM-2 embeddings on CPU (full precision), and save one {protein_id}.npy per record to an output dir. This script uses the full dev environment (requirements.txt). 
 """
 import argparse
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.plms import get_ProtT5
+from src.plms import get_esm2
 from Bio import SeqIO
 import re
 
@@ -18,7 +18,7 @@ def main():
     p.add_argument('--output-dir', '-o', required=True,
                    help='Directory to write {protein_id}.npy files')
     p.add_argument('--device', '-d', default='cpu',
-                   help='Device for ProtT5 (default: cpu; matches container precision)')
+                   help='Device for ESM-2 (default: cpu; matches container precision)')
     args = p.parse_args()
 
     out_dir = Path(args.output_dir)
@@ -36,7 +36,7 @@ def main():
         protein_ids.append(r.id)
         sequences.append(seq)
 
-    get_ProtT5(sequences=sequences, protein_ids=protein_ids,
+    get_esm2(sequences=sequences, protein_ids=protein_ids,
                output_dir=str(out_dir), device=args.device)
     print(f"Wrote {len(protein_ids)} embeddings to {out_dir}")
 
