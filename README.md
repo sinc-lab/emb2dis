@@ -1,4 +1,4 @@
-# emb2dis: protein disorder prediction tool
+# e_emb2dis: protein disorder prediction tool based on an ensemble of emb2dis models
 This repository contains a deep learning tool for predicting intrinsically disordered regions (IDRs) in protein sequences. 
 
 This tool generates embeddings from raw protein sequences using a pre-trained protein language model (pLM) and predicts disorder probabilities using a deep learning model that was trained with the **DisProt dataset** (2025_12). 
