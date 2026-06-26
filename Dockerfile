@@ -13,16 +13,16 @@ RUN pip install --index-url https://download.pytorch.org/whl/cpu torch==2.9.1 \
 
 COPY src/ /app/src/
 COPY config/ /app/config/
-COPY model/ProtT5/config.yaml /app/model/ProtT5/config.yaml
-COPY model/ProtT5/weights.pk /app/model/ProtT5/weights.pk
+COPY model/ /app/model/
 COPY predict_disorder.py /app/
 
 ENTRYPOINT ["python", "/app/predict_disorder.py", \
-            "--model", "ProtT5", \
+            "--model", "ESM2", \
             "--device", "cpu", \
             "--caid", \
             "--fasta", "/data/input.fasta", \
             "--embeddings-dir", "/data/embeddings", \
             "--output-dir", "/data/output", \
             "--threads", "4"]
+
 CMD []
