@@ -9,7 +9,7 @@ This tool generates embeddings from raw protein sequences using a pre-trained pr
 
 1. **Clone the repository:**
 ```bash
-git clone https://github.com/sofiaaduarte/emb2dis.git
+git clone https://github.com/sinc-lab/emb2dis.git
 cd emb2dis
 ```
 
