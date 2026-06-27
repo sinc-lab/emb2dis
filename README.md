@@ -82,7 +82,7 @@ python scripts/compute_esm2.py \
   --output-dir data/embeddings/
 ```
 
-This writes one `{protein_id}.npy` per FASTA record (shape `(1024, L)`).
+This writes one `{protein_id}.npy` per FASTA record (shape `(1280, L)`).
 
 ### 2. Run the container
 
