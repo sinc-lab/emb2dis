@@ -1,8 +1,10 @@
 # e_emb2dis: protein disorder prediction tool based on an ensemble of emb2dis models
-This repository contains a deep learning tool for predicting intrinsically disordered regions (IDRs) in protein sequences. 
 
-This tool generates embeddings from raw protein sequences using a pre-trained protein language model (pLM) and predicts disorder probabilities using a deep learning model that was trained with the **DisProt dataset** (2025_12). 
-## Environment setup
+This repository contains a deep learning tool for predicting intrinsically disordered regions (IDRs) in protein sequences. The tool uses an ensemble of pre-trained emb2dis models to predict residue-level disorder scores from precomputed ESM-2 embeddings and returns the results in CAID-style format.
+
+The disorder prediction models were trained using disorder annotations from DisProt (release 2025_12) as positive examples and observed residues from MobiDB as negatives.
+
+## Local environment setup
 
 1. **Clone the repository:**
 ```bash
@@ -20,61 +22,59 @@ conda activate emb2dis
 ```bash
 pip install -r requirements.txt
 ```
+
 ## Usage
-The main script is `predict_disorder.py`. You can provide a FASTA file containing one or more protein sequences:
-```
-python predict_disorder.py --fasta data/samples.fasta
+The main prediction script is `predict_disorder.py`. It takes as input a FASTA file and a directory containing precomputed ESM-2 embeddings, with one `{protein_id}.npy` file per FASTA record.
+
+For a quick test, the repository includes a sample FASTA file and example embeddings. They can be used as follows:
+
+```bash
+python predict_disorder.py --fasta data/samples.fasta --embedding-dir data/embeddings/
 ```
 
 This script will:
 - Read all sequences from the FASTA file.
-- Generate embeddings using ESM2.
+- Load precomputed ESM-2 embeddings from the embeddings directory.
 - Predict disorder scores for each residue using a sliding window approach.
-- Save results (CSV and plots) to the output directory (`./results/` by default).
-- Print disorder statistics to the console.
+- Save CAID-format outputs under the output directory (`./results/disorder/` by default).
+- Save a `timings.csv` file with per-sequence execution times.
 
 ### Command-line Arguments
 | Argument | Short | Description |
 |----------|-------|-------------|
 | `--fasta` | `-f` | Path to input FASTA file (required). |
-| `--output-dir` | `-o` | Directory to save predictions (.csv) and plots (.png) (`./results/` by default). |
-| `--device` | `-d` | Device: `cpu`, `cuda` (by default), `cuda:0`, etc. |
-| `--verbose` | `-v` | Enable verbose output for detailed progress (`False` by default). |
+| `--embedding-dir` | `-e` | Directory with pre-computed embeddings (.npy), one file per FASTA record. |
+| `--output-dir` | `-o` | Directory where CAID outputs are written (`./results/` by default; files go into `disorder/`). |
+| `--device` | `-d` | Device to run predictions on (default: `cpu`). |
+| `--threads` |  | Cap the number of CPU threads used by PyTorch (torch.set_num_threads). |
+| `--verbose` | `-v` | Enable verbose output for detailed progress. |
 
 ### Examples
 **1. Specify output directory and verbose mode:**
+```bash
+python predict_disorder.py --fasta data/samples.fasta --embedding-dir data/embeddings/ --output-dir my_results/ --verbose
 ```
-python predict_disorder.py --fasta data/samples.fasta --output-dir my_results/ --verbose
+**2. Use on a specific GPU:**
+```bash
+python predict_disorder.py --fasta data/samples.fasta --embedding-dir data/embeddings/ --device cuda:1
 ```
-**2. Use on CPU:**
-```
-python predict_disorder.py --fasta data/samples.fasta --device cpu
-```
-**3. Use a specific GPU:**
-```
-python predict_disorder.py --fasta data/samples.fasta --device cuda:1
-```
-<!-- MORE MODELS WILL BE ADDED LATER -->
-## Models
-### Supported Protein Language Models
+
+### Supported Protein Language Model
 
 | Model | Description | Embedding Size | Reference | Repository |
 |-------|-------------|----------------|-----------|------------|
 | **ESM2** | ESM-2 (650M parameters) | 1280 | [Lin et al., 2023](https://doi.org/10.1126/science.ade2574) | [facebookresearch/esm](https://github.com/facebookresearch/esm) |
-<!-- | **ProtT5** | ProtT5-XL (half precision) | 1024 | [Elnaggar et al., 2021](https://doi.org/10.1109/TPAMI.2021.3095381) | [rostlab/ProtTrans](https://github.com/rostlab/ProtTrans) | -->
-
-<!-- The disorder prediction models are trained specifically for each pLM.  -->
-
-Additional models will be added in future releases.
 
 
-## Container (CAID challenge)
+## Container usage for CAID challenge
 
-For this usage, embeddings need to be pre-computed, one .npy file per sequence, outside the container and mounted in at runtime.
+For the CAID challenge, the Docker container performs only the disorder prediction step. ESM-2 embeddings must be computed beforehand on the host machine and mounted into the container at runtime, one `{protein_id}.npy` per FASTA record.
 
-Inside the docker  image we have the trained classifier in a a CPU build with a minimal set of dependencies. It does not has access to internet in prediction time. 
+The Docker image includes the trained disorder prediction models in a CPU build with a minimal set of dependencies. The container is intended to run without internet access during prediction.
 
-### 1. Pre-compute ESM-2 embeddings (host side)
+### 1. Pre-compute ESM-2 embeddings on the host machine
+
+If the embeddings are not available, they can be generated on the host machine before running the container:
 
 ```bash
 python scripts/compute_esm2.py \
@@ -82,49 +82,53 @@ python scripts/compute_esm2.py \
   --output-dir data/embeddings/
 ```
 
-This writes one `{protein_id}.npy` per FASTA record (shape `(1280, L)`).
+This writes one `{protein_id}.npy` per FASTA record (shape `(1280, L)`, where `L` is the sequence length).
 
-### 2. Run the container
+### 2. Pull the Docker image and run the container
 
-The image is published on Docker Hub. Pull it once:
+The image is available on Docker Hub:
 
 ```bash
 docker pull sofiaaduarte/e_emb2dis:caid4
 ```
 
-Then run it offline with a FASTA + pre-computed embeddings:
+Run the container by mounting three paths from the host machine: the input FASTA file, the directory containing the precomputed embeddings, and the output directory.
 
 ```bash
 docker run --rm --network none \
-  -v user_fasta_path/samples.fasta:/data/input.fasta:ro \
-  -v user_emb_path:/data/embeddings:ro \
-  -v user_output_path:/data/output \
-  sofiaaduarte/e_emb2dis:caid4 --threads 4
+  -v <path_to_fasta>:/data/input.fasta:ro \
+  -v <path_to_embeddings>:/data/embeddings:ro \
+  -v <path_to_output>:/data/output \
+  sofiaaduarte/e_emb2dis:caid4 --threads 8
 ```
 
-The container-side paths are fixed by the image; the host paths on the left of each `:` can be anything (**note** check that paths should be absolute or relative prepending ./). Mount three host paths into:
-- `/data/input.fasta`: the FASTA file (read only).
-- `/data/embeddings/`: one `{protein_id}.npy` per FASTA record (from step 1, read only).
-- `/data/output/`: where results are written.
+The paths on the left side of each `:` correspond to files or directories on the host machine and can be changed by the user. The paths on the right side are fixed inside the container and must remain unchanged.
 
-For example, using the current working directory and the provided sample FASTA and embeddings:
+| Host path              | Container path      | Description                                                                              |
+| ---------------------- | ------------------- | ---------------------------------------------------------------------------------------- |
+| `<path_to_fasta>`      | `/data/input.fasta` | Input FASTA file, mounted as read-only.                                                  |
+| `<path_to_embeddings>` | `/data/embeddings`  | Directory containing one `{protein_id}.npy` file per FASTA record, mounted as read-only. |
+| `<path_to_output>`     | `/data/output`      | Directory where prediction files are written.                                            |
+
+
+The container can be tested with the sample files included in this repository:
 
 ```bash
 docker run --rm --network none \
-  -v ./data/samples.fasta:/data/input.fasta:ro \
-  -v ./data/embeddings:/data/embeddings:ro \
-  -v ./resultsa:/data/output \
+  -v "$(pwd)/data/samples.fasta:/data/input.fasta:ro" \
+  -v "$(pwd)/data/embeddings:/data/embeddings:ro" \
+  -v "$(pwd)/results:/data/output" \
   sofiaaduarte/e_emb2dis:caid4 \
-  --threads 4
+  --threads 8
 ```
 
 Output layout:
-- `/data/output/{protein_id}.caid` — one file per protein, CAID format.
-- `/data/output/timings.csv` — per-sequence execution time in milliseconds.
+- `/data/output/{protein_id}.caid`: one file per protein, CAID format.
+- `/data/output/timings.csv`: per-sequence execution time in milliseconds.
 
-### 3. (Optional) Build and publish Docker Hub
+### 3. (Optional) Build and publish Docker image
 
-We already provide the image in DockerHub. To build the image from this repo:
+To build the image from this repository, run the following command:
 
 ```bash
 docker build --network=host -t e_emb2dis:caid4 .
