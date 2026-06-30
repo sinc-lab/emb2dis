@@ -6,7 +6,6 @@ import esm
 import numpy as np
 from Bio import SeqIO
 from tqdm import tqdm
-from transformers import T5EncoderModel, T5Tokenizer
 from pathlib import Path
 
 def _parse_device(device: str) -> torch.device:
@@ -20,6 +19,7 @@ def _parse_device(device: str) -> torch.device:
         else:
             return torch.device(device)
     raise ValueError(f"Invalid device type: {type(device)}. Expected str")
+
 
 def get_esm2(sequences, protein_ids, output_dir, device='cuda'):
     device = _parse_device(device)
@@ -51,125 +51,6 @@ def get_esm2(sequences, protein_ids, output_dir, device='cuda'):
             new_embed = new_embed.T
             np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
       
-def compute_esmc_embed(sequence, model="esmc_300m", device="cuda"):
-    # TODO: add this model
-    from esm.models.esmc import ESMC # move to top if implemented!
-    from esm.sdk.api import ESMProtein, LogitsConfig
-
-    protein = ESMProtein(sequence=sequence)
-
-    client = ESMC.from_pretrained(model).to(device)
-
-    protein_tensor = client.encode(protein)
-
-    # Run the model to obtain per-residue embeddings
-    logits_output = client.logits(
-        protein_tensor,
-        LogitsConfig(sequence=True, return_embeddings=True)
-    )
-
-    return logits_output.embeddings
-
-def get_esmc(sequences, protein_ids, output_dir, esmc_model, device='cuda'):
-    # TODO: add this model
-    device = _parse_device(device)
-
-    for prot_id, seq in tqdm(zip(protein_ids, sequences)):
-        embedding = compute_esmc_embed(
-            sequence=seq,
-            model=esmc_model,
-            device=str(device)
-        ).cpu().numpy()[0]
-
-        batch_lens = embedding.shape[0]
-
-        # Remove the first ([CLS]) and last ([EOS]) token embeddings
-        embedding = embedding[1:batch_lens - 1]
-
-        np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=embedding)
-
-def get_ProtT5(sequences, protein_ids, output_dir, device='cuda'):
-    device = _parse_device(device)
-
-    # Load the tokenizer and encoder model for ProtT5
-    tokenizer = T5Tokenizer.from_pretrained('Rostlab/prot_t5_xl_half_uniref50-enc', 
-                                            do_lower_case=False,
-                                            legacy=True)
-    model = T5EncoderModel.from_pretrained("Rostlab/prot_t5_xl_half_uniref50-enc").to(device)
-
-    # Use full precision on CPU and half precision on GPU to save memory
-    model.full() if device == 'cpu' else model.half()
-
-    model = model.eval()
-
-    for prot_id, seq in tqdm(zip(protein_ids, sequences)):
-        seq_len = len(seq)
-
-        # Only process sequences shorter than 4000 residues
-        if seq_len < 4000:
-            # Insert spaces between residues (as required by ProtT5)
-            seq_processed = " ".join(list(seq))
-
-            # Tokenize sequences and pad to the longest sequence
-            ids = tokenizer.batch_encode_plus([seq_processed], add_special_tokens=True, padding="longest")
-
-            input_ids = torch.tensor(ids['input_ids']).to(device)
-            attention_mask = torch.tensor(ids['attention_mask']).to(device)
-
-            with torch.no_grad():
-                embedding = model(input_ids=input_ids, attention_mask=attention_mask)
-
-            numpy_embedding = embedding.last_hidden_state.cpu().numpy()
-
-            # Remove padding: keep only the first `seq_len` embeddings
-            new_embed = numpy_embedding[0][:seq_len, :].T  # Transpose to [embedding_dim, sequence_length]
-
-            # Save the embedding as a .npy file using the sequence ID
-            np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
-        else:
-            print(f"Warning: Sequence {prot_id} is too long ({seq_len} residues) for ProtT5. Skipping.")
-
-
-def get_ProstT5(sequences, protein_ids, output_dir, device='cuda'):
-    device = _parse_device(device)
-
-    # Load the ProstT5 tokenizer and encoder model from Hugging Face
-    tokenizer = T5Tokenizer.from_pretrained('Rostlab/ProstT5', 
-                                            do_lower_case=False, 
-                                            legacy=False)
-    model = T5EncoderModel.from_pretrained("Rostlab/ProstT5").to(device)
-
-    # Use full precision on CPU and half precision on GPU
-    model.full() if device == 'cpu' else model.half()
-    model = model.eval()
-
-    for prot_id, seq in tqdm(zip(protein_ids, sequences)):
-        seq_len = len(seq)
-
-        # Insert spaces between residues
-        seq_processed = " ".join(list(seq))
-
-        # Add ProstT5-specific prompt token at the start of each sequence
-        seq_processed = "<AA2fold> " + seq_processed
-
-        # Tokenize sequences using the ProstT5 tokenizer
-        ids = tokenizer.batch_encode_plus([seq_processed], add_special_tokens=True, padding="longest")
-
-        input_ids = torch.tensor(ids['input_ids']).to(device)
-        attention_mask = torch.tensor(ids['attention_mask']).to(device)
-
-        # Disable gradient tracking for inference
-        with torch.no_grad():
-            embedding = model(input_ids=input_ids, attention_mask=attention_mask)
-
-        numpy_embedding = embedding.last_hidden_state.cpu().numpy()
-
-        # Remove the first token (corresponding to the <AA2fold> prompt)
-        # Keep only the embeddings for actual amino acid residues
-        new_embed = numpy_embedding[0][1:seq_len+1, :].T  # Transpose to [embedding_dim, sequence_length]
-
-        np.save(os.path.join(output_dir, f'{prot_id}.npy'), arr=new_embed)
-
 
 def generate_embeddings_from_fasta(
         fasta_path: str, 
@@ -228,17 +109,8 @@ def generate_embeddings_from_fasta(
         if plm == 'ESM2':
             get_esm2(sequences=sequences, protein_ids=protein_ids, 
                      output_dir=str(temp_dir), device=device)
-        elif plm in ['esmc_300m', 'esmc_600m']:
-            get_esmc(sequences=sequences, protein_ids=protein_ids, 
-                     output_dir=str(temp_dir), esmc_model=plm, device=device)
-        elif plm == 'ProtT5':
-            get_ProtT5(sequences=sequences, protein_ids=protein_ids, 
-                       output_dir=str(temp_dir), device=device)
-        elif plm == 'ProstT5':
-            get_ProstT5(sequences=sequences, protein_ids=protein_ids, 
-                        output_dir=str(temp_dir), device=device)
         else:
-            raise ValueError(f"Unknown PLM: {plm}. Choose from: ESM2, ProtT5") # Later will add ProstT5, esmc_300m, esmc_600m
+            raise ValueError(f"Unknown PLM: {plm}.")
         
         # Load the generated embeddings
         results = []
