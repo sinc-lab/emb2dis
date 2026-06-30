@@ -43,7 +43,7 @@ def parser():
     parser.add_argument(
         '--device', '-d',
         type=str,
-        default='cuda',
+        default='cpu',
         help='Device to run predictions on (e.g., "cpu", "cuda", "cuda:0", "cuda:1")'
     )
     parser.add_argument(
@@ -130,6 +130,7 @@ def main():
     total_proteins = len(emb_results)
 
     # For each protein embedding and ID
+    print(f"\nPredicting disorder for {total_proteins} proteins...")
     with tqdm(total=total_proteins, unit='protein', desc='Analyzing proteins', dynamic_ncols=True) as pbar:
         for emb, protein_id, sequence in emb_results:
             pbar.set_description(f"Analyzing {protein_id}")
