@@ -1,0 +1,33 @@
+debug: false
+datasets_to_test:
+- dev
+- disorder_nox
+- disorder_pdb
+categories:
+- structured
+- disordered
+filters: 300
+kernel_size: 7
+n_resnet: 2
+lr: 0.0001
+batch_size: 16
+nepoch: 500
+patience: 10
+win_len: 20
+soft_max: true
+p_dropout: 0.3
+pLM: ESM2
+emb_size:
+  ESM2: 1280
+  ProtT5: 1024
+  ProstT5: 1024
+  esmc_300m: 960
+  esmc_600m: 1152
+subset: fold_4
+data_root: dataset/disorder_25-12/partitions/cv10_nr_seed42_wo-test
+num_workers: 6
+device: cuda:1
+emb_path: /home/sduarte/embeddings/disorder/
+caid_path: data/processed/caid3_3/
+data_path: dataset/disorder_25-12/partitions/cv10_nr_seed42_wo-test/fold_4/
+id: vscode-remote://ssh-remote%2Bpc74/home/sduarte/disorder/emb2dis-sofiaaduarte/results/CAID4/cv10_nr_seed42_wo-test_r2/fold_4/fold_4_run_01
