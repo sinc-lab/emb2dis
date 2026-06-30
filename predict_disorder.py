@@ -7,6 +7,7 @@ import time
 import torch as tr
 import pandas as pd
 from pathlib import Path
+from tqdm import tqdm
 from src.ensemble import EnsembleModel, build_ensemble_dirs
 from src.utils import get_embedding_size, calculate_disorder_percentage
 
@@ -145,76 +146,82 @@ def main():
 
     all_stats = []
     timings = []  # list of (protein_id, milliseconds)
+    total_proteins = len(emb_results)
 
     # For each protein embedding and ID
-    for emb, protein_id, sequence in emb_results:
-        if args.verbose:
-            print(f"\n--- Processing Protein: {protein_id} ---")
-            print(f"Sequence length: {emb.shape[1]} residues")
+    with tqdm(total=total_proteins, unit='protein', desc='Analyzing proteins', dynamic_ncols=True) as pbar:
+        for emb, protein_id, sequence in emb_results:
+            pbar.set_description(f"Analyzing {protein_id}")
+
+            if args.verbose:
+                print(f"\n--- Processing Protein: {protein_id} ---")
+                print(f"Sequence length: {emb.shape[1]} residues")
         
-        # Predict --------------------------------------------------------------
-        t0 = time.perf_counter()
-        centers, predictions = model.pred_sliding_window(emb, step=1)
-        predictions = tr.as_tensor(predictions, dtype=tr.float)
-        elapsed_ms = (time.perf_counter() - t0) * 1000.0
-        timings.append((protein_id, elapsed_ms))
+            # Predict --------------------------------------------------------------
+            t0 = time.perf_counter()
+            centers, predictions = model.pred_sliding_window(emb, step=1)
+            predictions = tr.as_tensor(predictions, dtype=tr.float)
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            timings.append((protein_id, elapsed_ms))
 
-        # Calculate disorder percentage
-        stats = calculate_disorder_percentage(predictions,
-                                              threshold=threshold)
+            # Calculate disorder percentage
+            stats = calculate_disorder_percentage(predictions,
+                                                  threshold=threshold)
 
-        # Print results
-        print(f"\nDISORDER PREDICTION RESULTS FOR: {protein_id}")
-        print(f"Total residues:        {stats['total_residues']}")
-        print(f"Disordered residues:   {stats['disordered_residues']}")
-        print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
-
-        # Save outputs ---------------------------------------------------------
-
-        if args.caid:
-            # CAID-format output only
-            from src.caid_io import write_caid_file
-            if sequence is None:
-                from Bio import SeqIO
-                with open(args.fasta, 'r') as fh:
-                    rec = next((r for r in SeqIO.parse(fh, 'fasta') if r.id == protein_id), None)
-                sequence = str(rec.seq).upper() if rec is not None else 'X' * len(predictions)
-            caid_path = output_dir / f"{protein_id}.caid"
-            write_caid_file(
-                caid_path,
-                protein_id,
-                sequence,
-                centers,
-                predictions,
-                threshold=threshold,
-            )
+            # Print results (verbose mode only)
             if args.verbose:
-                print(f"CAID file saved to: {caid_path}")
-        else:
-            # Local enriched outputs (plot + CSV) -------------------------------------
-            from src.plot import plot_disorder_prediction
-            output_plot = output_dir / f"{protein_id}_{args.model}_plot.png"
-            plot_disorder_prediction(
-                centers,
-                predictions,
-                protein_id,
-                threshold=threshold,
-                output_path=output_plot,
-            )
-            if args.verbose:
-                print(f"Plot saved to: {output_plot}")
+                print(f"\nDISORDER PREDICTION RESULTS FOR: {protein_id}")
+                print(f"Total residues:        {stats['total_residues']}")
+                print(f"Disordered residues:   {stats['disordered_residues']}")
+                print(f"Disorder percentage:   {stats['disorder_percentage']:.2f}%")
 
-            output_csv = output_dir / f"{protein_id}_{args.model}_predictions.csv"
-            df = pd.DataFrame({
-                'position': centers+1,
-                'disordered_score': predictions[:, 1].numpy(),
-                'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
-            })
-            df.to_csv(output_csv, index=False)
-            if args.verbose:
-                print(f"Predictions saved to: {output_csv}")
+            # Save outputs ---------------------------------------------------------
 
-        all_stats.append(stats)
+            if args.caid:
+                # CAID-format output only
+                from src.caid_io import write_caid_file
+                if sequence is None:
+                    from Bio import SeqIO
+                    with open(args.fasta, 'r') as fh:
+                        rec = next((r for r in SeqIO.parse(fh, 'fasta') if r.id == protein_id), None)
+                    sequence = str(rec.seq).upper() if rec is not None else 'X' * len(predictions)
+                caid_path = output_dir / f"{protein_id}.caid"
+                write_caid_file(
+                    caid_path,
+                    protein_id,
+                    sequence,
+                    centers,
+                    predictions,
+                    threshold=threshold,
+                )
+                if args.verbose:
+                    print(f"CAID file saved to: {caid_path}")
+            else:
+                # Local enriched outputs (plot + CSV) -------------------------------------
+                from src.plot import plot_disorder_prediction
+                output_plot = output_dir / f"{protein_id}_{args.model}_plot.png"
+                plot_disorder_prediction(
+                    centers,
+                    predictions,
+                    protein_id,
+                    threshold=threshold,
+                    output_path=output_plot,
+                )
+                if args.verbose:
+                    print(f"Plot saved to: {output_plot}")
+
+                output_csv = output_dir / f"{protein_id}_{args.model}_predictions.csv"
+                df = pd.DataFrame({
+                    'position': centers+1,
+                    'disordered_score': predictions[:, 1].numpy(),
+                    'predicted_label': (predictions[:, 1] > threshold).numpy().astype(int)
+                })
+                df.to_csv(output_csv, index=False)
+                if args.verbose:
+                    print(f"Predictions saved to: {output_csv}")
+
+            all_stats.append(stats)
+            pbar.update(1)
 
     if args.caid:
         from src.caid_io import write_timings_csv
