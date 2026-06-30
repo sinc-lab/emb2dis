@@ -17,12 +17,10 @@ COPY model/ /app/model/
 COPY predict_disorder.py /app/
 
 ENTRYPOINT ["python", "/app/predict_disorder.py", \
-            "--model", "ESM2", \
             "--device", "cpu", \
-            "--caid", \
             "--fasta", "/data/input.fasta", \
-            "--embeddings-dir", "/data/embeddings", \
+            "--embedding-dir", "/data/embeddings", \
             "--output-dir", "/data/output", \
-            "--threads", "4"]
+            "--threads", "8"]
 
 CMD []

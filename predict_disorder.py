@@ -1,5 +1,11 @@
 """
 Predict disorder from protein embeddings using a trained model
+
+Usage: 
+    python predict_disorder.py --fasta <path_to_fasta> --embedding-dir <path_to_embeddings_dir> --output-dir <output_dir> [--device <device>] [--verbose] [--threads <num_threads>]
+
+For example:
+    python predict_disorder.py --fasta data/samples.fasta --embedding-dir data/embeddings/
 """
 import argparse
 import yaml
@@ -29,7 +35,7 @@ def parser():
         help='Path to FASTA file (will generate embedding on-the-fly)'
     )
     parser.add_argument(
-        '--embeddings-dir', '-e',
+        '--embedding-dir', '-e',
         type=str,
         required=True,
         help='Directory with pre-computed embeddings, one {protein_id}.npy per FASTA record. '
@@ -100,12 +106,12 @@ def main():
     model = EnsembleModel(model_dirs, device=device)
 
     # Load FASTA and obtain embeddings -----------------------------------------
-    if args.embeddings_dir:
-        print(f"\nLoading pre-computed ESM-2 embeddings from: {args.embeddings_dir}")
+    if args.embedding_dir:
+        print(f"\nLoading pre-computed ESM-2 embeddings from: {args.embedding_dir}")
         from src.caid_io import load_embeddings_from_dir
         emb_results = load_embeddings_from_dir(
             fasta_path=args.fasta,
-            embeddings_dir=args.embeddings_dir,
+            embeddings_dir=args.embedding_dir,
             emb_size=emb_size,
             verbose=args.verbose,
         )
