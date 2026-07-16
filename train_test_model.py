@@ -1,5 +1,6 @@
 ''' 
 IMPORTANT: Run this script from the root directory (not from scripts/)
+python -m train_test_model
 '''
 import os
 import sys
@@ -12,7 +13,7 @@ sys.path.append(os.getcwd()) # to correctly import modules from the root directo
 from src.train import train
 from src.test import test
 from src.model import BaseModel
-from src.utils import ResultsTable, ConfigLoader
+from src.utils import ResultsTable, ConfigLoader, get_embedding_size
 
 # Configure PyTorch multiprocessing for better memory management
 tr.multiprocessing.set_sharing_strategy('file_system')
@@ -20,6 +21,26 @@ tr.backends.cudnn.benchmark = False  # Disable cudnn benchmark for consistent me
 warnings.filterwarnings("ignore", # Filter some annoying warnings
                         message=".*cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR.*")
 warnings.simplefilter("ignore", FutureWarning)
+
+
+def load_base_model(config, base_path):
+    """ Load the base model architecture and weights. """
+    emb_size = get_embedding_size(config.get('pLM'))
+
+    model = BaseModel(
+        len(config['categories']),
+        emb_size=emb_size,
+        lr=config['lr'],
+        device=config['device'],
+        filters=config['filters'],
+        kernel_size=config['kernel_size'],
+        num_layers=config['n_resnet'],
+        p_dropout=config['p_dropout']
+        ) 
+    model_path = base_path / 'weights.pk'
+    model.load_state_dict(tr.load(model_path))
+
+    return model.to(config['device'])
 
 def train_test_model(config, base_path):
 
@@ -32,43 +53,27 @@ def train_test_model(config, base_path):
 
     # TESTING MODEL
     print('TESTING MODEL')
-
-    categories = config['categories']
-
-    # Load the model
-    model_path = base_path / 'weights.pk'
-    model = BaseModel(len(categories), emb_size=config['emb_size'][config['pLM']],
-                       lr=config['lr'], device='cuda', p_dropout=config['p_dropout'],
-                filters=config['filters'], kernel_size=config['kernel_size'],
-                num_layers=config['n_resnet']) 
-    model.load_state_dict(tr.load(model_path))
-
+    model = load_base_model(config, base_path)
     results_table = ResultsTable()
 
-    caid = "caid3_3"  # CAID dataset version
-    for partition in ['dev',
-                      f"{caid}/disorder_pdb", 
-                      f"{caid}/disorder_nox", 
-                      f"{caid}/binding",
-                      f"{caid}/binding_idr",
-                      f"{caid}/linker"]:
-                      
-        print(f'EVALUATING ON {partition.upper()} SET')
-
+    datasets = config.get('datasets_to_test', ['dev'])  # Default to 'dev' if not specified
+    for dataset in datasets:
+        print(f'EVALUATING ON {dataset.upper()} SET')
         metrics = test(
-            model, config, partition=partition, 
-            # save_predictions=True, 
-            # output_path=base_path
+            model,
+            config,
+            output_path=str(base_path),
+            partition=dataset,
+            save_predictions=True
             )
-        results_table.add_entry(partition, **metrics)
+        results_table.add_entry(dataset, **metrics)
 
     # Save results
     results_table.save(base_path / 'results.csv')
-    results_table.print()  # Print the results in a tabular format
+    results_table.print()
     print('Done :)')
 
-if __name__ == "__main__":
-
+def main():
     # Load the configuration file
     config_loader = ConfigLoader()
     config = config_loader.load()
@@ -81,10 +86,13 @@ if __name__ == "__main__":
         f"win{config['win_len']}_lr{config['lr']:.0e}"
     )
     exp_name = f"{net_param}_{timestamp}"
-    base_path = Path(f'results/models/{exp_name}/') 
+    base_path = Path(f'results/models/{config["pLM"]}/{exp_name}/') 
     base_path.mkdir(parents=True, exist_ok=True)
 
     # Save the configuration
     config_loader.save(base_path)
 
     train_test_model(config, base_path)
+
+if __name__ == "__main__":
+    main()

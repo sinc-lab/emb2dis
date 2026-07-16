@@ -3,6 +3,7 @@ import sys
 import warnings
 import torch as tr
 import pandas as pd
+from pathlib import Path
 from sklearn.metrics import matthews_corrcoef, precision_score, recall_score, average_precision_score, balanced_accuracy_score, precision_recall_curve
 sys.path.append(os.getcwd()) # to correctly import modules
 from src.utils import load_data
@@ -33,8 +34,16 @@ def test(
     use_softmax = config.get('soft_max', False)
     
     # Load the test dataset
-    dataset_file = f"{config['data_path']}{partition}.csv"
-
+    # Use caid_path for caid datasets, otherwise use data_path
+    if 'disorder' in partition.lower():
+        dataset_file = str(Path(config['caid_path']) / f"{partition}.csv")
+    elif partition == "test":
+        path = Path(config['data_path'])
+        dataset_file = path.parent / "test.csv"
+    else:
+        path = Path(config['data_path']) / f"{partition}"
+        dataset_file = f"{path}.csv"
+    
     test_loader, len_test = load_data(dataset_file, config, is_segment=False, 
                                       is_training=False, num_workers=0)
     # Set num_workers=0 to reduce memory problems
