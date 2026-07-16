@@ -58,6 +58,32 @@ python predict_disorder.py --fasta data/samples.fasta --model ESM2 --device cpu
 ```
 python predict_disorder.py --fasta data/samples.fasta --device cuda:1
 ```
+
+## Train and evaluate the models
+To train and evaluate the proposed disorder models, run the `train_test_model.py` script from the repository root:
+
+```bash
+python -m train_test_model
+```
+
+Before running it, make sure the configuration files point to your local paths:
+
+- `config/base.yaml`: set the training data path in `data_path`.
+- `config/env.yaml`: set the embedding directory in `emb_path` and the CAID directory in `caid_path`.
+
+The `.csv` files required by the training and evaluation pipeline are already provided in the repository. The embeddings must be available locally under the directory configured in `emb_path`. They can be downloaded from the shared Google Drive folder.
+
+## Download precomputed embeddings
+Precomputed embeddings are provided as `.tar.gz` archives in a shared Google Drive folder, one archive per protein language model.
+
+Download the folder and extract the archives:
+
+```bash
+mkdir -p data/embeddings
+gdown --folder 1iwfAr7ZHY9SbnCLqobRpuzMWcmcv_z3p -O data/embeddings
+for archive in data/embeddings/*.tar.gz; do tar -xzf "$archive" -C data/embeddings/; done
+```
+
 ## Models
 ### Supported Protein Language Models
 
