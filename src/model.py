@@ -7,7 +7,8 @@ from tqdm import tqdm
 class BaseModel(nn.Module):
     def __init__(self, nclasses, emb_size=1024, lr=1e-3, device="cuda", 
     filters=550, kernel_size=9, num_layers=3, first_dilated_layer=2, 
-    dilation_rate=3, resnet_bottleneck_factor=.5, p_dropout=0.6):
+    dilation_rate=3, resnet_bottleneck_factor=.5, p_dropout=0.6,
+    labels_weight=(1.0, 1.0)): # > WEIGHTS!! (neg, pos)
         """
         A CNN with residual layers for sequence classification.
 
@@ -31,11 +32,11 @@ class BaseModel(nn.Module):
         self.cnn.append(nn.AdaptiveMaxPool1d(1))
         self.cnn = nn.Sequential(*self.cnn)
 
-        self.dropout = nn.Dropout(p_dropout) # ! added dropout
+        self.dropout = nn.Dropout(p_dropout)
 
         self.fc = nn.Linear(filters, nclasses)
 
-        self.loss = nn.CrossEntropyLoss()
+        self.loss = nn.CrossEntropyLoss(weight=tr.tensor(labels_weight))
         self.optim = tr.optim.Adam(self.parameters(), lr=lr, weight_decay=1e-4)
 
         self.to(device)
@@ -52,7 +53,7 @@ class BaseModel(nn.Module):
         """Train the model for one epoch on the provided dataloader"""
         avg_loss = 0
 
-        self.cnn.train(), self.fc.train()
+        self.train()
         self.optim.zero_grad() 
 
         for k,(x, y, *_) in enumerate(tqdm(dataloader)):
