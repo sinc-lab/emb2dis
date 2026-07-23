@@ -40,7 +40,7 @@ class SegmentDataset(Dataset):
     protein region for training or evaluation.
     """
     def __init__(self, dataset_path, emb_path, categories=("structured", "disordered"),
-                 win_len=32, debug=False, is_training=False):
+                 win_len=32, debug=False, is_training=False, negative_label_scaling=None):
         """
         Dataset contains all valid segments in the complete proteins.
         """
@@ -49,6 +49,7 @@ class SegmentDataset(Dataset):
         self.categories = categories
         self.win_len = win_len
         self.dataset = pd.read_csv(dataset_path)
+        self.negative_label_scaling = negative_label_scaling
 
         # If debugging, sample a smaller subset of the dataset
         if debug:
@@ -91,6 +92,11 @@ class SegmentDataset(Dataset):
         for k in range(len(domains)):
             score = _soft_domain_score(start, end, domains.iloc[k].start, domains.iloc[k].end)
             label_idx = self.categories.index(domains.iloc[k].label)
+
+            # Scale the score for the structured class if negative_label_scaling is set
+            if label_idx == 0 and self.negative_label_scaling is not None:
+                score *= self.negative_label_scaling
+
             label_soft[label_idx] += score
 
         # # force labels to sum 1 # * this was used in emb2pfam
@@ -112,7 +118,7 @@ class AminoAcidDataset(Dataset):
     simulate a sliding window approach for evaluation.
     """
     def __init__(self, dataset_path, emb_path, categories=("structured", "disordered"),
-                 win_len=32, step=1, debug=False):
+                 win_len=32, step=1, debug=False, negative_label_scaling=None):
     
         self.win_len = win_len
         self.half_win = win_len // 2
@@ -120,6 +126,7 @@ class AminoAcidDataset(Dataset):
         self.categories = categories
         # Map category (disorder state) to index 
         self.cat2idx = {c: i for i, c in enumerate(categories)}  
+        self.negative_label_scaling = negative_label_scaling
 
         # Load the dataset
         df = pd.read_csv(dataset_path).astype({"start": int, "end": int})
@@ -177,6 +184,11 @@ class AminoAcidDataset(Dataset):
         label_soft = np.zeros(len(self.categories), dtype=np.float32)
         for dom_start, dom_end, label in self.domains[acc]:  
                 score = _soft_domain_score(win_start, win_end, dom_start, dom_end)
+                
+                # Scale the score for the structured class if negative_label_scaling is set
+                if label == 0 and self.negative_label_scaling is not None:
+                    score *= self.negative_label_scaling
+                
                 label_soft[label] += score
 
         # Create a fixed-size embedding window

@@ -43,13 +43,16 @@ def load_data(
     plm = config['pLM']
     emb_path = f"{emb_path_dir}/{plm}/"
     win_len = config['win_len']
+    negative_label_scaling = config.get('negative_label_scaling', None)
 
     if is_segment:
         dataset = SegmentDataset(data_path, emb_path, categories, win_len,
-                                is_training=True, debug=debug)
+                                is_training=True, debug=debug,
+                                negative_label_scaling=negative_label_scaling)
     else: 
         dataset = AminoAcidDataset(data_path, emb_path, win_len=win_len, 
-                                   categories=categories, debug=debug)
+                                   categories=categories, debug=debug,
+                                   negative_label_scaling=negative_label_scaling)
 
     loader = DataLoader(dataset, batch_size=config['batch_size'],
                         shuffle=is_training, num_workers=num_workers, 

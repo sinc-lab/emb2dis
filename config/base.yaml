@@ -25,3 +25,4 @@ emb_size:
   esmc_600m: 1152
 subset: null
 loss_class_weights: [1.0, 1.0] # (neg, pos)
+negative_label_scaling: null
