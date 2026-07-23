@@ -69,7 +69,7 @@ def save_partition_predictions_caid(output_dir: Path, partition: str, names: lis
 
         for acc, center, score, label in zip(names, centers, scores, labels):
             sequence = sequences[acc]
-            row = (int(center) + 1, sequence[int(center)], float(score), int(label))
+            row = (int(center), sequence[int(center)], float(score), int(label))
 
             if acc != current_acc:
                 if current_rows:
