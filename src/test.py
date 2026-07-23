@@ -6,6 +6,7 @@ import pandas as pd
 from pathlib import Path
 from sklearn.metrics import matthews_corrcoef, precision_score, recall_score, average_precision_score, balanced_accuracy_score, precision_recall_curve
 sys.path.append(os.getcwd()) # to correctly import modules
+from src.caid_output import save_partition_predictions_caid
 from src.utils import load_data
 tr.multiprocessing.set_sharing_strategy('file_system')
 warnings.filterwarnings("ignore", # Filter warnings
@@ -17,7 +18,7 @@ def test(
         model: tr.nn.Module,
         config: dict,  
         output_path: str = None,
-        partition: str = 'test', 
+        partition: str = 'dev', 
         save_predictions: bool = False,  
         ) -> None:
     """
@@ -31,19 +32,17 @@ def test(
     Returns:
         dict: A dictionary containing the evaluation metrics
     """
-    use_softmax = config.get('soft_max', False)
+    use_softmax = config.get('soft_max', True)
     
     # Load the test dataset
     # Use caid_path for caid datasets, otherwise use data_path
-    if 'disorder' in partition.lower():
+    if partition == 'dev':
+        dataset_file = str(Path(config['data_path']) / f"{partition}.csv")
+    elif 'disorder' in partition.lower():
         dataset_file = str(Path(config['caid_path']) / f"{partition}.csv")
-    elif partition == "test":
-        path = Path(config['data_path'])
-        dataset_file = path.parent / "test.csv"
     else:
-        path = Path(config['data_path']) / f"{partition}"
-        dataset_file = f"{path}.csv"
-    
+        raise ValueError(f"Unknown partition: {partition}")
+
     test_loader, len_test = load_data(dataset_file, config, is_segment=False, 
                                       is_training=False, num_workers=0)
     # Set num_workers=0 to reduce memory problems
@@ -55,20 +54,33 @@ def test(
     if use_softmax:
         pred = tr.softmax(pred, dim=1)
     pred_bin = tr.argmax(pred, dim=1).cpu().detach().numpy()
+    pred_labels = pred_bin.tolist()
 
     # Save predictions and references
     if save_predictions:
+        output_dir = Path(output_path) if output_path else Path.cwd()
+        partition_name = partition.replace('/', '_')
         pred_df = pd.DataFrame({
             'acc': names,
             'centers': centers,
             'structured_score': pred[:, 0],
             'disordered_score': pred[:, 1],
-            'label': ref_hard,
+            'reference_label': ref_hard.cpu().detach().numpy(),
+            'predicted_label': pred_labels,
         })
-        partition_name = partition.replace('/', '_')
-        pred_df.to_csv(os.path.join(output_path, f"predictions_{partition_name}.csv"), index=False)
+        pred_df.to_csv(output_dir / f"predictions_{partition_name}.csv", index=False)
+        if 'disorder' in partition.lower():
+            save_partition_predictions_caid(
+                output_dir=output_dir,
+                partition=partition,
+                names=names,
+                centers=centers,
+                scores=pred[:, 1].detach().cpu().tolist(),
+                labels=pred_labels,
+                config=config,
+            )
 
-    # Calculate metrics
+    # Calculate metrics using sklearn
     aps = average_precision_score(ref_hard, pred[:, 1], average='macro')
     recall = recall_score(ref_hard, pred_bin, average='macro', zero_division=0)
     precision = precision_score(ref_hard, pred_bin, average='macro', zero_division=0)
