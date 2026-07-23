@@ -35,7 +35,8 @@ def load_base_model(config, base_path):
         filters=config['filters'],
         kernel_size=config['kernel_size'],
         num_layers=config['n_resnet'],
-        p_dropout=config['p_dropout']
+        p_dropout=config['p_dropout'], 
+        loss_class_weights=config['loss_class_weights']
         ) 
     model_path = base_path / 'weights.pk'
     model.load_state_dict(tr.load(model_path))

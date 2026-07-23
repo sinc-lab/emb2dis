@@ -16,7 +16,7 @@ patience: 10
 win_len: 30
 soft_max: true
 p_dropout: 0.2
-pLM: 'ProtT5'
+pLM: 'ESM2'
 emb_size:
   ESM2: 1280
   ProtT5: 1024
@@ -24,3 +24,4 @@ emb_size:
   esmc_300m: 960
   esmc_600m: 1152
 subset: null
+loss_class_weights: [1.0, 1.0] # (neg, pos)

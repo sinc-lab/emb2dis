@@ -53,6 +53,8 @@ def main():
         filters=config["filters"],
         kernel_size=config["kernel_size"],
         num_layers=config["n_resnet"],
+        loss_class_weights=config["loss_class_weights"]
+
     )
     model.load_state_dict(tr.load(weights_path, map_location=device))
 

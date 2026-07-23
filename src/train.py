@@ -48,7 +48,7 @@ def train(
     net = BaseModel(len(categories), emb_size=config['emb_size'][config['pLM']], 
                     lr=config['lr'], device=device, p_dropout=config['p_dropout'],
                     filters=config['filters'], kernel_size=config['kernel_size'],
-                    num_layers=config['n_resnet']) 
+                    num_layers=config['n_resnet'], loss_class_weights=config['loss_class_weights'])
 
     # ------------------------------- TRAINING ------------------------------- #
     with open(summary, 'w') as s:

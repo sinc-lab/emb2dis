@@ -8,7 +8,7 @@ class BaseModel(nn.Module):
     def __init__(self, nclasses, emb_size=1024, lr=1e-3, device="cuda", 
     filters=550, kernel_size=9, num_layers=3, first_dilated_layer=2, 
     dilation_rate=3, resnet_bottleneck_factor=.5, p_dropout=0.6,
-    labels_weight=(1.0, 1.0)): # > WEIGHTS!! (neg, pos)
+    loss_class_weights=(1.0, 1.0)):
         """
         A CNN with residual layers for sequence classification.
 
@@ -17,6 +17,7 @@ class BaseModel(nn.Module):
             emb_size: Size of the input embeddings.
             lr: Learning rate for the optimizer.
             device: Device to run the model on ('cuda' or 'cpu').
+            loss_class_weights: Weights for the loss function to handle class imbalance. (neg, pos)
         All the other parameters define the architecture of the CNN.
         """
         super().__init__()
@@ -36,7 +37,7 @@ class BaseModel(nn.Module):
 
         self.fc = nn.Linear(filters, nclasses)
 
-        self.loss = nn.CrossEntropyLoss(weight=tr.tensor(labels_weight))
+        self.loss = nn.CrossEntropyLoss(weight=tr.tensor(loss_class_weights))
         self.optim = tr.optim.Adam(self.parameters(), lr=lr, weight_decay=1e-4)
 
         self.to(device)
