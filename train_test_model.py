@@ -11,9 +11,10 @@ from pathlib import Path
 from datetime import datetime
 sys.path.append(os.getcwd()) # to correctly import modules from the root directory
 from src.train import train
-from src.test import test
+from src.test import test, predict_fasta_to_caid
 from src.model import BaseModel
 from src.utils import ResultsTable, ConfigLoader, get_embedding_size
+from src.metrics import get_caid_metrics
 
 # Configure PyTorch multiprocessing for better memory management
 tr.multiprocessing.set_sharing_strategy('file_system')
@@ -72,6 +73,18 @@ def train_test_model(config, base_path):
     # Save results
     results_table.save(base_path / 'results.csv')
     results_table.print()
+
+    prediction_fasta = config.get('prediction_fasta')
+    if prediction_fasta:
+        print('PREDICTING FASTA INPUT')
+        predict_fasta_to_caid(
+            model,
+            config,
+            fasta_path=prediction_fasta,
+            output_path=str(base_path),
+        )
+        get_caid_metrics(base_path, Path(config['caid_path']).parent)
+
     print('Done :)')
 
 def main():

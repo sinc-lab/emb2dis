@@ -3,11 +3,12 @@ import sys
 import warnings
 import torch as tr
 import pandas as pd
+import numpy as np
 from pathlib import Path
 from sklearn.metrics import matthews_corrcoef, precision_score, recall_score, average_precision_score, balanced_accuracy_score, precision_recall_curve
 sys.path.append(os.getcwd()) # to correctly import modules
-from src.caid_output import save_partition_predictions_caid
-from src.utils import load_data
+from src.caid_output import load_fasta_sequences, write_caid_block
+from src.utils import load_data, predict_sliding_window
 tr.multiprocessing.set_sharing_strategy('file_system')
 warnings.filterwarnings("ignore", # Filter warnings
                         message=".*cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR.*")
@@ -69,16 +70,7 @@ def test(
             'predicted_label': pred_labels,
         })
         pred_df.to_csv(output_dir / f"predictions_{partition_name}.csv", index=False)
-        if 'disorder' in partition.lower():
-            save_partition_predictions_caid(
-                output_dir=output_dir,
-                partition=partition,
-                names=names,
-                centers=centers,
-                scores=pred[:, 1].detach().cpu().tolist(),
-                labels=pred_labels,
-                config=config,
-            )
+
 
     # Calculate metrics using sklearn
     aps = average_precision_score(ref_hard, pred[:, 1], average='macro')
@@ -110,3 +102,51 @@ def test(
 
     return results
 
+
+def predict_fasta_to_caid(
+        model: tr.nn.Module,
+        config: dict,
+        fasta_path: str,
+        output_path: str = None,
+    ) -> Path:
+    """
+    Predict disorder for a FASTA file using full-sequence sliding windows 
+    and save one file in CAID-format.
+    """
+    if not fasta_path:
+        raise ValueError("fasta_path is required")
+
+    emb_dir = Path(config['emb_path']) / config['pLM']
+    output_dir = Path(output_path) if output_path else Path.cwd()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    fasta_path = Path(fasta_path)
+    sequences = load_fasta_sequences(fasta_path)
+
+    model.eval()
+    output_file = output_dir / "predictions.caid"
+
+    # TODO: add progress bar
+    with open(output_file, 'w') as handle: 
+        for protein_id, sequence in sequences.items():
+            emb_file = emb_dir / f"{protein_id}.npy"
+            if not emb_file.exists():
+                raise FileNotFoundError(f"Missing embedding file: {emb_file}")
+
+            emb = tr.tensor(np.load(emb_file), dtype=tr.float32)
+            centers, predictions = predict_sliding_window(
+                model,
+                emb,
+                window_len=config['win_len'],
+                step=1,
+                use_softmax=config['soft_max'],
+                median_filter_size=None,
+            )
+
+            predicted_labels = tr.argmax(predictions, dim=1).cpu().tolist()
+            rows = [
+                (int(center) + 1, sequence[int(center)], float(score), int(label))
+                for center, score, label in zip(centers, predictions[:, 1].cpu().tolist(), predicted_labels)
+            ]
+            write_caid_block(handle, protein_id, rows)
+
+    return output_file
