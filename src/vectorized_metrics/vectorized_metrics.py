@@ -1,4 +1,3 @@
-import argparse
 import logging
 import shutil
 import warnings
@@ -10,7 +9,6 @@ import pandas as pd
 from scipy import stats
 from tqdm import tqdm
 
-from .logger import set_logger
 from .parsers import parse_prediction, parse_reference, parse_thresholds
 
 
@@ -475,7 +473,7 @@ def target_curves_and_metrics(aln_refpred, predname):
 
 
 def bvaluation(reference: Path, predictions: list, outpath=".", dataset=True, target=False, bootstrap=False,
-               run_tag="analysis", threshold_file=None, normalize=False, accs_to_read=None):
+               run_tag="analysis", threshold_file=None, normalize=False, accs_to_read=None, summary_only=False):
     outpath = Path(outpath)
     outpath.mkdir(parents=True, exist_ok=True)
     refname = reference.stem
@@ -517,22 +515,24 @@ def bvaluation(reference: Path, predictions: list, outpath=".", dataset=True, ta
                 aln_ref_pred[('ref', 'states')].values,
                 aln_ref_pred[(predname, 'scores')].values,
                 predname)
-        np.savetxt(outpath / '{}.rawscores.distribution.txt'.format(predname),
-                   aln_ref_pred[(predname, 'scores')].values, fmt='%.3f')
-        np.savetxt(outpath / '{}.thresholds.distribution.txt'.format(predname),
-                   roc_curve.index.values, fmt='%.3f')
+        if summary_only is False:
+            np.savetxt(outpath / '{}.rawscores.distribution.txt'.format(predname),
+                       aln_ref_pred[(predname, 'scores')].values, fmt='%.3f')
+            np.savetxt(outpath / '{}.thresholds.distribution.txt'.format(predname),
+                       roc_curve.index.values, fmt='%.3f')
 
         if dataset is True:
-            dataset_metrics.to_csv(outpath / ".".join([refname, run_tag, predname, "dataset", "metrics", "csv"]))
+            if summary_only is False:
+                dataset_metrics.to_csv(outpath / ".".join([refname, run_tag, predname, "dataset", "metrics", "csv"]))
             roc_curves.append(roc_curve)
             pr_curves.append(pr_curve)
             cmats.append(cmat)
 
-        if bootstrap is True:
+        if bootstrap is True and summary_only is False:
             bootstrap_metrics = bootstrap_curves_and_metrics(aln_ref_pred, predname, 100)
             bootstrap_metrics.to_csv(outpath / ".".join([refname, run_tag, predname, "bootstrap", "metrics", "csv"]))
 
-        if target is True:
+        if target is True and summary_only is False:
             target_metrics = target_curves_and_metrics(aln_ref_pred, predname)
             target_metrics.to_csv(outpath / ".".join([refname, run_tag, predname, "target", "metrics", "csv"]))
 
@@ -545,10 +545,11 @@ def bvaluation(reference: Path, predictions: list, outpath=".", dataset=True, ta
             if np.isnan(thresholds['default']):
                 default_present = False
 
-            # Write thresholds to file
-            with open(outpath / ".".join([refname, run_tag, predname, "thr", "txt"]), "w") as f:
-                for k, v in thresholds.items():
-                    f.write("{}\t{}\n".format(k, v))
+            if summary_only is False:
+                # Write thresholds to file
+                with open(outpath / ".".join([refname, run_tag, predname, "thr", "txt"]), "w") as f:
+                    for k, v in thresholds.items():
+                        f.write("{}\t{}\n".format(k, v))
 
         except ValueError as e:
             print("\n{} has no thresholds for {}, removing, {}".format(predname, reference.stem, e))
@@ -594,16 +595,19 @@ def bvaluation(reference: Path, predictions: list, outpath=".", dataset=True, ta
                     outpath / ".".join([refname, run_tag, "all", "bootstrap", m, "metrics", "csv"]))
             pd.concat(ci_data[m]).to_csv(outpath / ".".join([refname, run_tag, "all", "ci", m, "metrics", "csv"]))
 
-    all_preds_aligned, excluded = align_reference_prediction(ref_obj, all_preds, False)
-    all_preds_aligned.to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "predictions", "csv"]))
+    if summary_only is False:
+        all_preds_aligned, excluded = align_reference_prediction(ref_obj, all_preds, False)
+        all_preds_aligned.to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "predictions", "csv"]))
 
-    if excluded:
-        logging.warning("excluded targets: {}".format(", ".join(excluded)))
+        if excluded:
+            logging.warning("excluded targets: {}".format(", ".join(excluded)))
 
-    if dataset is True:
-        pd.concat(roc_curves, axis=1).sort_index(ascending=False) \
-            .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "roc", "csv"]))
-        pd.concat(pr_curves, axis=1).sort_index(ascending=False) \
-            .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "pr", "csv"]))
-        pd.concat(cmats, axis=1).sort_index(ascending=False) \
-            .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "cmat", "csv"]))
+        if dataset is True:
+            pd.concat(roc_curves, axis=1).sort_index(ascending=False) \
+                .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "roc", "csv"]))
+            pd.concat(pr_curves, axis=1).sort_index(ascending=False) \
+                .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "pr", "csv"]))
+            pd.concat(cmats, axis=1).sort_index(ascending=False) \
+                .to_csv(outpath / ".".join([refname, run_tag, "all", "dataset", "_", "cmat", "csv"]))
+    elif dataset is True:
+        pass
