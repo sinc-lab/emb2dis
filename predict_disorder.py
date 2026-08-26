@@ -5,11 +5,13 @@ import argparse
 import numpy as np
 import torch as tr
 import pandas as pd
+import time
 from pathlib import Path
 from src.model import BaseModel
-from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, calculate_disorder_percentage
+from src.utils import ConfigLoader, predict_sliding_window, get_embedding_size, calculate_disorder_percentage, read_fasta_ids
 from src.plms import generate_embeddings_from_fasta
 from src.plot import plot_disorder_prediction
+
 
 def parser():
     parser = argparse.ArgumentParser(
@@ -40,6 +42,13 @@ def parser():
              'with filenames based on the input FASTA file.'
     )
     parser.add_argument(
+        '--embeddings-dir', '-e',
+        type=str,
+        default='embeddings/',
+        help='Directory to save generated embeddings. '
+             'If not provided, embeddings will be saved in the "embeddings/" directory.'
+    )
+    parser.add_argument(
         '--device', '-d',
         type=str,
         default='cuda',
@@ -51,6 +60,7 @@ def parser():
         help='Enable verbose output'
     )
     return parser.parse_args()
+
 
 def main():
     args = parser()
@@ -101,23 +111,37 @@ def main():
         kernel_size=config['kernel_size'],
         num_layers=config['n_resnet']
     )
-    model.load_state_dict(tr.load(weights_path, map_location=device))
+    model.load_state_dict(tr.load(weights_path, map_location=device), strict=False)
     model.eval()
     
     # Load FASTA and generate embeddings ---------------------------------------
+    full_start = time.perf_counter()
     print(f"\nGenerating {args.model} embeddings for sequences in: {args.fasta}")
-    results = generate_embeddings_from_fasta(
+    embeddings_start = time.perf_counter()
+    embeddings_root = Path(args.embeddings_dir)
+    embeddings_root.mkdir(parents=True, exist_ok=True)
+    embeddings_dir = embeddings_root / args.model
+    protein_ids = read_fasta_ids(args.fasta)
+    generate_embeddings_from_fasta(
         fasta_path=args.fasta,
-        plm=args.model, 
+        output_dir=str(embeddings_root),
+        plm=args.model,
         verbose=args.verbose,
         device=device
     )
+    embeddings_time = time.perf_counter() - embeddings_start
+
+    results = [
+        (tr.from_numpy(np.load(embeddings_dir / f"{protein_id}.npy")), protein_id)
+        for protein_id in protein_ids
+    ]
     
     # Predict disorder for all the proteins and save results -------------------
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     all_stats = []
+    predictions_start = time.perf_counter()
 
     # For each protein embedding and ID
     for emb, protein_id in results:
@@ -170,6 +194,14 @@ def main():
             print(f"Predictions saved to: {output_csv}")
         
         all_stats.append(stats)
+
+    predictions_time = time.perf_counter() - predictions_start
+    total_time = time.perf_counter() - full_start
+
+    if args.verbose:
+        print(f"\nEmbedding generation time: {embeddings_time:.2f} s")
+        print(f"Prediction time:           {predictions_time:.2f} s")
+        print(f"Total runtime:             {total_time:.2f} s")
     
     return all_stats
 

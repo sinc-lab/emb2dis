@@ -124,19 +124,33 @@ def predict_sliding_window(net, emb, window_len, step=1, use_softmax=True,
 
     return centers, pred
 
-def get_embedding_size(plm_name: str) -> int:
+def get_embedding_size(plm_name: str) -> int: # TODO: improve this
     """Returns the embedding size for a given protein language model."""
     plm_sizes = {
         'ProtT5': 1024,
         'ProstT5': 1024,
-        'ESM2': 1280,
         'esmc_300m': 960,
-        'esmc_600m': 1152
+        'esmc_600m': 1152, 
+        'ESM2_8m': 320,
+        'ESM2_35m': 480,
+        'ESM2_150m': 640,
+        'ESM2_650m': 1280,
+        'ESM2': 1280,
     }
     if plm_name in plm_sizes:
         return plm_sizes[plm_name]
     else:
         raise ValueError(f"Unknown PLM name: {plm_name}")
+
+
+def read_fasta_ids(fasta_path: str):
+    protein_ids = []
+    with open(fasta_path, "r") as fasta_file:
+        for line in fasta_file:
+            if line.startswith(">"):
+                protein_ids.append(line[1:].strip().split()[0])
+    return protein_ids
+
 
 class ConfigLoader:
     def __init__(self, 
