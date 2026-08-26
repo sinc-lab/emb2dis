@@ -1,1 +1,0 @@
-This folder contains the original data files used in emb2dis.
