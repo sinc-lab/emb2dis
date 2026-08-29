@@ -40,8 +40,9 @@ This script will:
 | Argument | Short | Description |
 |----------|-------|-------------|
 | `--fasta` | `-f` | Path to input FASTA file (required). |
-| `--model` | `-m` | Protein language model: `ProtT5` (by default) or `ESM2` |
+| `--model` | `-m` | Protein language model: `ESM2` (by default) or `ProtT5` |
 | `--output-dir` | `-o` | Directory to save predictions (.csv) and plots (.png) (`./results/` by default). |
+| `--embedding-dir` | `-e` | Directory to save embeddings (.pt) (`./embeddings/` by default). |
 | `--device` | `-d` | Device: `cpu`, `cuda` (by default), `cuda:0`, etc. |
 | `--verbose` | `-v` | Enable verbose output for detailed progress (`False` by default). |
 
@@ -50,9 +51,9 @@ This script will:
 ```
 python predict_disorder.py --fasta data/samples.fasta --output-dir my_results/ --verbose
 ```
-**2. Use ESM2 model on CPU:**
+**2. Use ProtT5 model on CPU:**
 ```
-python predict_disorder.py --fasta data/samples.fasta --model ESM2 --device cpu
+python predict_disorder.py --fasta data/samples.fasta --model ProtT5 --device cpu
 ```
 **3. Use a specific GPU:**
 ```
@@ -66,35 +67,6 @@ python predict_disorder.py --fasta data/samples.fasta --device cuda:1
 | **ESM2** | ESM-2 (650M parameters) | 1280 | [Lin et al., 2023](https://doi.org/10.1126/science.ade2574) | [facebookresearch/esm](https://github.com/facebookresearch/esm) |
 | **ProtT5** | ProtT5-XL (half precision) | 1024 | [Elnaggar et al., 2021](https://doi.org/10.1109/TPAMI.2021.3095381) | [rostlab/ProtTrans](https://github.com/rostlab/ProtTrans) |
 
+ <!-- TODO: add ProstT5 -->
+
 The disorder prediction models are trained specifically for each pLM. 
-
-## Embedding generation, model training and evaluation
-
-### Generate or download protein embeddings
-Protein embeddings must be available locally before training and evaluating the models. You can generate them using the corresponding pLMs or download the precomputed embeddings provided in the shared Google Drive folder.
-
-Precomputed embeddings are distributed as `.tar.gz` archives, with one archive for each protein language model. To download and extract them, run:
-
-```bash
-mkdir -p data/embeddings
-gdown --folder 1iwfAr7ZHY9SbnCLqobRpuzMWcmcv_z3p -O data/embeddings
-for archive in data/embeddings/*.tar.gz; do tar -xzf "$archive" -C data/embeddings/; done
-```
-After extraction, make sure that the embedding directories are located under the path specified by `emb_path` in `config/env.yaml` (default: `data/embeddings/`).
-
-## Train and evaluate the models
-
-Once the embeddings are available, train and evaluate the proposed disorder models by running the `train_test_model.py` script from the repository root:
-
-```bash
-python -m train_test_model
-```
-Make sure the configuration files point to your local paths:
-
-* `config/base.yaml`: set `data_path` to the directory containing the training and evaluation data.
-* `config/env.yaml`: set `emb_path` to the directory containing the protein embeddings and `caid_path` to the directory containing the CAID benchmark data.
-
-The script will train the models and evaluate them on the CAID3v3 benchmark datasets. The results will be saved in the `results/` directory.
-
-### Additional notes
-- **Sequence preprocessing**: Non-canonical amino acids (U, Z, O, B) are automatically converted to 'X' before generating embeddings.
