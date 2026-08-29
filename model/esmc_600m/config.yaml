@@ -18,5 +18,4 @@ pLM: esmc_600m
 p_dropout: 0.30000000000000004
 patience: 10
 soft_max: true
-threshold: 0.42899999022483826
 win_len: 35
