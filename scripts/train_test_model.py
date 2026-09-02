@@ -1,31 +1,49 @@
-''' 
-IMPORTANT: Run this script from the root directory (not from scripts/)
-python -m train_test_model
+'''
+Train and evaluate the emb2dis disorder prediction model.
+
+The training and environment settings are loaded from config/base.yaml 
+and config/env.yaml, including the model hyperparameters, paths and device
+configuration.
+
+The model ins trained on the training partition of the dataset, and evaluated on 
+the dev partition. Results are saved under:
+
+    results/models/<pLM>/<experiment_name>_<timestamp>/
+
+where <pLM> is the protein language model used for embedding generation, 
+<experiment_name> is a string describing the model hyperparameters, and
+<timestamp> is the date and time of the experiment.
+    
+After training and evaluation, the model is also used to generate predictions 
+for the CAID benchmark. Predictions are saved in CAID format and evaluated against
+the corresponding annotations.
+
+Usage:
+    python -m scripts.train_test_model
 '''
 import os
 import sys
 import warnings
 import torch as tr
-import gc  # Add garbage collection
+import gc
 from pathlib import Path
 from datetime import datetime
-sys.path.append(os.getcwd()) # to correctly import modules from the root directory
+sys.path.append(os.getcwd())
 from src.train import train
 from src.test import test, predict_fasta_to_caid
 from src.model import BaseModel
 from src.utils import ResultsTable, ConfigLoader, get_embedding_size
 from src.metrics import get_caid_metrics
 
-# Configure PyTorch multiprocessing for better memory management
 tr.multiprocessing.set_sharing_strategy('file_system')
-tr.backends.cudnn.benchmark = False  # Disable cudnn benchmark for consistent memory usage
-warnings.filterwarnings("ignore", # Filter some annoying warnings
+tr.backends.cudnn.benchmark = False
+warnings.filterwarnings("ignore",
                         message=".*cudnnException: CUDNN_BACKEND_EXECUTION_PLAN_DESCRIPTOR.*")
 warnings.simplefilter("ignore", FutureWarning)
 
 
 def load_base_model(config, base_path):
-    """ Load the base model architecture and weights. """
+    """Load the base model architecture and weights."""
     emb_size = get_embedding_size(config.get('pLM'))
 
     model = BaseModel(
@@ -44,7 +62,11 @@ def load_base_model(config, base_path):
 
     return model.to(config['device'])
 
+
 def train_test_model(config, base_path):
+    """
+    Train an emb2dis model, then evaluate it on the dev partition.
+    """
 
     print('TRAINING MODEL')
     train(config, base_path)
@@ -58,7 +80,7 @@ def train_test_model(config, base_path):
     model = load_base_model(config, base_path)
     results_table = ResultsTable()
 
-    datasets = config.get('datasets_to_test', ['dev'])  # Default to 'dev' if not specified
+    datasets = config.get('datasets_to_test', ['dev'])
     for dataset in datasets:
         print(f'EVALUATING ON {dataset.upper()} SET')
         metrics = test(
@@ -107,6 +129,7 @@ def main():
     config_loader.save(base_path)
 
     train_test_model(config, base_path)
+
 
 if __name__ == "__main__":
     main()

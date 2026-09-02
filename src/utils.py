@@ -235,7 +235,7 @@ class ResultsTable():
     def __init__(self):
         """Initializes the ResultsTable"""
         self.metrics = ["auc", "aps", "f1", "fmax", "mcc", 
-                        "err", "balanced_acc", "precision", "recall", "threshold"]
+                        "err", "balanced_acc", "precision", "recall"]
         self.df = pd.DataFrame(columns=["Dataset"] + self.metrics)
 
     def add_entry(self, dataset, **metrics):
