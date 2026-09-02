@@ -24,7 +24,7 @@ import torch as tr
 import yaml
 from pathlib import Path
 from datetime import datetime
-from train_test_model import train_test_model
+from scripts.train_test_model import train_test_model
 from src.utils import ConfigLoader
 
 tr.multiprocessing.set_sharing_strategy('file_system')

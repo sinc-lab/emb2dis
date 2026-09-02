@@ -16,7 +16,7 @@ Arguments:
                      'cuda:0'). Defaults to 'cuda'.
 
 For example:
-    python -m scripts.generate_embeddings data/samples.fasta embeddings_try --plm ESM2 --verbose --device cuda
+    python -m scripts.generate_embeddings data/samples.fasta embeddings --plm ESM2 --verbose --device cuda
 """
 import os
 import sys
