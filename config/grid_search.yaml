@@ -1,0 +1,35 @@
+search_space:
+  lr:
+    type: float
+    low: 1.0e-6
+    high: 1.0e-2
+    log: true
+  win_len:
+    type: int
+    low: 10
+    high: 100
+    step: 5
+  filters:
+    type: int
+    low: 50
+    high: 400
+    step: 50
+  kernel_size:
+    type: int
+    low: 3
+    high: 11
+    step: 2
+  n_resnet:
+    type: int
+    low: 1
+    high: 4
+  p_dropout:
+    type: float
+    low: 0.0
+    high: 0.6
+    step: 0.1
+
+study:
+  n_trials: 250
+  n_startup_trials: 50
+  objectives: [auc]
