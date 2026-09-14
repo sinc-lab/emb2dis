@@ -31,7 +31,7 @@ python predict_disorder.py --fasta data/samples.fasta
 
 This script will:
 - Read all sequences from the FASTA file.
-- Generate embeddings using the specified pLM (ProtT5 by default).
+- Generate embeddings using the specified pLM (ESM2 by default).
 - Predict disorder scores for each residue using a sliding window approach.
 - Save results (CSV and plots) to the output directory (`./results/` by default).
 - Print disorder statistics to the console.
